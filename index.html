@@ -1,0 +1,290 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+ content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#111111">
+<title>Flipbook Digital</title>
+
+<style>
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #111;
+}
+
+header, footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #202020;
+  z-index: 10;
+}
+
+header { padding-top: max(10px, env(safe-area-inset-top)); }
+footer { justify-content: center; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+
+button {
+  padding: 10px 14px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #333;
+  color: white;
+  font-size: 16px;
+}
+
+#reader {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+  position: relative;
+}
+
+#book {
+  margin: auto;
+  transform-origin: center center;
+}
+
+#app.clean header,
+#app.clean footer {
+  display: none;
+}
+
+#app.clean #reader {
+  flex: 1;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  header, footer { padding: 4px; }
+  button { padding: 6px 10px; }
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+  <header>
+    <strong>Flipbook</strong>
+    <div>
+      <button id="zoomOut">−</button>
+      <button id="zoomIn">+</button>
+      <button id="full">⛶</button>
+      <button id="hide">☰</button>
+    </div>
+  </header>
+
+  <main id="reader">
+    <div id="book"></div>
+  </main>
+
+  <footer>
+    <button id="prev">‹ Sebelumnya</button>
+    <span id="status">Memuat…</span>
+    <button id="next">Berikutnya ›</button>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+
+<script>
+const TOTAL_PAGES = 6; // Ganti dengan jumlah halaman PDF
+
+const images = Array.from(
+  { length: TOTAL_PAGES },
+  (_, i) => `pages/${i + 1}.jpg`
+);
+
+const app = document.querySelector("#app");
+const reader = document.querySelector("#reader");
+const bookElement = document.querySelector("#book");
+
+let book;
+let zoom = 1;
+let panX = 0;
+let panY = 0;
+let startDistance = 0;
+let startZoom = 1;
+let lastX = 0;
+let lastY = 0;
+let pointers = new Map();
+
+function updateZoom() {
+  bookElement.style.transform =
+    `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+function setZoom(value) {
+  zoom = Math.max(1, Math.min(3, value));
+
+  if (zoom === 1) {
+    panX = 0;
+    panY = 0;
+  }
+
+  updateZoom();
+}
+
+function distance(a, b) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+// Pinch dan pan memakai Pointer Events.
+// Saat zoom aktif, cegah gesture membalik halaman.
+reader.addEventListener("pointerdown", e => {
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size === 1 && zoom > 1) {
+    lastX = e.clientX;
+    lastY = e.clientY;
+  }
+
+  if (pointers.size === 2) {
+    const p = [...pointers.values()];
+    startDistance = distance(p[0], p[1]);
+    startZoom = zoom;
+  }
+});
+
+reader.addEventListener("pointermove", e => {
+  if (!pointers.has(e.pointerId)) return;
+
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (pointers.size >= 2) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const p = [...pointers.values()];
+    const d = distance(p[0], p[1]);
+
+    if (startDistance > 0) {
+      setZoom(startZoom * d / startDistance);
+    }
+  } else if (zoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    panX += e.clientX - lastX;
+    panY += e.clientY - lastY;
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+    updateZoom();
+  }
+}, { passive: false });
+
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) startDistance = 0;
+}
+
+reader.addEventListener("pointerup", endPointer);
+reader.addEventListener("pointercancel", endPointer);
+
+// Blokir gesture halaman ketika pinch atau zoom aktif.
+reader.addEventListener("touchstart", e => {
+  if (e.touches.length > 1 || zoom > 1) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}, { capture: true, passive: false });
+
+reader.addEventListener("touchmove", e => {
+  if (e.touches.length > 1 || zoom > 1) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }
+}, { capture: true, passive: false });
+
+document.querySelector("#zoomIn").onclick =
+  () => setZoom(zoom + 0.25);
+
+document.querySelector("#zoomOut").onclick =
+  () => setZoom(zoom - 0.25);
+
+document.querySelector("#prev").onclick = () => {
+  if (book && zoom === 1) book.flipPrev();
+};
+
+document.querySelector("#next").onclick = () => {
+  if (book && zoom === 1) book.flipNext();
+};
+
+document.querySelector("#hide").onclick = () => {
+  app.classList.toggle("clean");
+};
+
+document.querySelector("#full").onclick = async () => {
+  try {
+    if (!document.fullscreenElement) {
+      await app.requestFullscreen();
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch {
+    alert("Fullscreen tidak didukung browser ini.");
+  }
+};
+
+function updateStatus() {
+  if (!book) return;
+
+  document.querySelector("#status").textContent =
+    `Halaman ${book.getCurrentPageIndex() + 1} / ${book.getPageCount()}`;
+
+  document.querySelector("#prev").disabled =
+    book.getCurrentPageIndex() === 0 || zoom > 1;
+
+  document.querySelector("#next").disabled =
+    book.getCurrentPageIndex() >= book.getPageCount() - 1 || zoom > 1;
+}
+
+function init() {
+  book = new St.PageFlip(bookElement, {
+    width: 420,
+    height: 594,
+    size: "stretch",
+    minWidth: 260,
+    maxWidth: 900,
+    minHeight: 360,
+    maxHeight: 1200,
+    showCover: true,
+    usePortrait: true,
+    autoSize: true,
+    maxShadowOpacity: 0.4,
+    flippingTime: 700,
+    mobileScrollSupport: false,
+    swipeDistance: 25
+  });
+
+  book.on("flip", updateStatus);
+  book.loadFromImages(images);
+  updateStatus();
+}
+
+init();
+</script>
+</body>
+</html>
