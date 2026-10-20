@@ -2,289 +2,517 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport"
- content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#111111">
-<title>Flipbook Digital</title>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <title>Flipbook Digital</title>
 
-<style>
-* { box-sizing: border-box; }
+  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
 
-html, body {
-  margin: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-  background: #111;
-  color: white;
-  font-family: Arial, sans-serif;
-}
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-#app {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background: #111;
-}
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      color: white;
+      font-family: Arial, sans-serif;
+      overscroll-behavior: none;
+    }
 
-header, footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  background: #202020;
-  z-index: 10;
-}
+    #app {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background: #111;
+      overflow: hidden;
+    }
 
-header { padding-top: max(10px, env(safe-area-inset-top)); }
-footer { justify-content: center; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+    #book-area {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      touch-action: none;
+    }
 
-button {
-  padding: 10px 14px;
-  border: 1px solid #555;
-  border-radius: 8px;
-  background: #333;
-  color: white;
-  font-size: 16px;
-}
+    #book-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: min(96vw, 550px);
+      height: min(88dvh, 780px);
+      transform-origin: center center;
+      will-change: transform;
+    }
 
-#reader {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  touch-action: none;
-  position: relative;
-}
+    #book {
+      width: 100%;
+      height: 100%;
+    }
 
-#book {
-  margin: auto;
-  transform-origin: center center;
-}
+    #book canvas {
+      display: block;
+    }
 
-#app.clean header,
-#app.clean footer {
-  display: none;
-}
+    #toolbar {
+      position: absolute;
+      z-index: 10;
+      left: 50%;
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px;
+      border-radius: 999px;
+      background: rgba(25,25,25,.88);
+      border: 1px solid rgba(255,255,255,.18);
+      backdrop-filter: blur(12px);
+      white-space: nowrap;
+    }
 
-#app.clean #reader {
-  flex: 1;
-}
+    button {
+      border: 0;
+      color: white;
+      background: #333;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      cursor: pointer;
+    }
 
-@media (orientation: landscape) and (max-height: 500px) {
-  header, footer { padding: 4px; }
-  button { padding: 6px 10px; }
-}
-</style>
+    button:active {
+      background: #555;
+    }
+
+    #page-info {
+      min-width: 54px;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    #hint {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      color: #eee;
+      background: rgba(0,0,0,.5);
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    #loading {
+      position: absolute;
+      z-index: 20;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+      background: #111;
+      color: white;
+    }
+
+    #loading.hidden {
+      display: none;
+    }
+
+    /* Fullscreen: hilangkan kontrol tambahan.
+       Tombol fullscreen tetap tersedia untuk keluar. */
+    #app:fullscreen #toolbar button:not(#fullscreen),
+    #app:fullscreen #page-info,
+    #app:fullscreen #hint {
+      display: none;
+    }
+
+    #app:fullscreen #toolbar {
+      left: auto;
+      right: max(12px, env(safe-area-inset-right));
+      bottom: max(12px, env(safe-area-inset-bottom));
+      transform: none;
+      background: rgba(0,0,0,.25);
+      border: 0;
+    }
+
+    @media (max-width: 600px) {
+      #book-stage {
+        width: min(96vw, 550px);
+        height: 86dvh;
+      }
+
+      #toolbar {
+        gap: 4px;
+        padding: 6px;
+      }
+
+      button {
+        padding: 10px 11px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 <div id="app">
-  <header>
-    <strong>Flipbook</strong>
-    <div>
-      <button id="zoomOut">−</button>
-      <button id="zoomIn">+</button>
-      <button id="full">⛶</button>
-      <button id="hide">☰</button>
+  <div id="loading">Memuat buku...</div>
+
+  <div id="book-area">
+    <div id="book-stage">
+      <div id="book"></div>
     </div>
-  </header>
+  </div>
 
-  <main id="reader">
-    <div id="book"></div>
-  </main>
+  <div id="hint">
+    Geser untuk membalik halaman · Cubit untuk zoom
+  </div>
 
-  <footer>
-    <button id="prev">‹ Sebelumnya</button>
-    <span id="status">Memuat…</span>
-    <button id="next">Berikutnya ›</button>
-  </footer>
+  <div id="toolbar">
+    <button id="prev" aria-label="Halaman sebelumnya">‹</button>
+    <span id="page-info">1 / 72</span>
+    <button id="next" aria-label="Halaman berikutnya">›</button>
+    <button id="zoom-out" aria-label="Perkecil">−</button>
+    <button id="zoom-in" aria-label="Perbesar">+</button>
+    <button id="reset" aria-label="Reset zoom">↺</button>
+    <button id="fullscreen" aria-label="Layar penuh">⛶</button>
+  </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
-
 <script>
-const TOTAL_PAGES = 6; // Ganti dengan jumlah halaman PDF
+  // UBAH angka ini sesuai jumlah halaman PDF.
+  const PAGE_COUNT = 6;
 
-const images = Array.from(
-  { length: TOTAL_PAGES },
-  (_, i) => `pages/${i + 1}.jpg`
-);
+  // Gunakan "webp" jika file berformat WebP.
+  // Jika file JPG, ubah menjadi "jpg".
+  const IMAGE_FORMAT = "jpg";
 
-const app = document.querySelector("#app");
-const reader = document.querySelector("#reader");
-const bookElement = document.querySelector("#book");
+  // Nama file harus: 001.webp, 002.webp, 003.webp, dst.
+  const pages = Array.from(
+    { length: PAGE_COUNT },
+    (_, i) => `pages/${String(i + 1).padStart(3, "0")}.${IMAGE_FORMAT}`
+  );
 
-let book;
-let zoom = 1;
-let panX = 0;
-let panY = 0;
-let startDistance = 0;
-let startZoom = 1;
-let lastX = 0;
-let lastY = 0;
-let pointers = new Map();
+  const app = document.getElementById("app");
+  const area = document.getElementById("book-area");
+  const stage = document.getElementById("book-stage");
+  const loading = document.getElementById("loading");
+  const pageInfo = document.getElementById("page-info");
 
-function updateZoom() {
-  bookElement.style.transform =
-    `translate(${panX}px, ${panY}px) scale(${zoom})`;
-}
+  let flip = null;
+  let scale = 1;
+  let panX = 0;
+  let panY = 0;
+  let pointers = new Map();
+  let gesture = null;
 
-function setZoom(value) {
-  zoom = Math.max(1, Math.min(3, value));
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 3;
 
-  if (zoom === 1) {
+  function updateTransform() {
+    stage.style.transform =
+      `translate(${panX}px, ${panY}px) scale(${scale})`;
+  }
+
+  function clampPan() {
+    const maxX = area.clientWidth * (scale - 1) / 2;
+    const maxY = area.clientHeight * (scale - 1) / 2;
+
+    panX = Math.max(-maxX, Math.min(maxX, panX));
+    panY = Math.max(-maxY, Math.min(maxY, panY));
+  }
+
+  function resetZoom() {
+    scale = 1;
     panX = 0;
     panY = 0;
+    gesture = null;
+    updateTransform();
   }
 
-  updateZoom();
-}
-
-function distance(a, b) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
-}
-
-// Pinch dan pan memakai Pointer Events.
-// Saat zoom aktif, cegah gesture membalik halaman.
-reader.addEventListener("pointerdown", e => {
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-  if (pointers.size === 1 && zoom > 1) {
-    lastX = e.clientX;
-    lastY = e.clientY;
+  function distance(a, b) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
-  if (pointers.size === 2) {
-    const p = [...pointers.values()];
-    startDistance = distance(p[0], p[1]);
-    startZoom = zoom;
+  function midpoint(a, b) {
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2
+    };
   }
-});
 
-reader.addEventListener("pointermove", e => {
-  if (!pointers.has(e.pointerId)) return;
+  function zoomAt(nextScale, x, y) {
+    const oldScale = scale;
+    nextScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
 
-  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const rect = area.getBoundingClientRect();
+    const localX = x - rect.left - rect.width / 2;
+    const localY = y - rect.top - rect.height / 2;
 
-  if (pointers.size >= 2) {
-    e.preventDefault();
-    e.stopPropagation();
+    panX = localX - (localX - panX) * nextScale / oldScale;
+    panY = localY - (localY - panY) * nextScale / oldScale;
+    scale = nextScale;
 
-    const p = [...pointers.values()];
-    const d = distance(p[0], p[1]);
-
-    if (startDistance > 0) {
-      setZoom(startZoom * d / startDistance);
-    }
-  } else if (zoom > 1) {
-    e.preventDefault();
-    e.stopPropagation();
-
-    panX += e.clientX - lastX;
-    panY += e.clientY - lastY;
-
-    lastX = e.clientX;
-    lastY = e.clientY;
-    updateZoom();
+    clampPan();
+    updateTransform();
   }
-}, { passive: false });
 
-function endPointer(e) {
-  pointers.delete(e.pointerId);
-  if (pointers.size < 2) startDistance = 0;
-}
+  /*
+    Ketika zoom = 1:
+    - satu jari tetap ditangani oleh StPageFlip.
+    - dua jari digunakan untuk memulai pinch.
 
-reader.addEventListener("pointerup", endPointer);
-reader.addEventListener("pointercancel", endPointer);
+    Ketika zoom > 1:
+    - satu jari menggeser tampilan.
+    - dua jari mengubah zoom.
+    - tidak ada gestur yang membalik halaman.
+  */
+  area.addEventListener("pointerdown", (e) => {
+    pointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY
+    });
 
-// Blokir gesture halaman ketika pinch atau zoom aktif.
-reader.addEventListener("touchstart", e => {
-  if (e.touches.length > 1 || zoom > 1) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }
-}, { capture: true, passive: false });
+    if (scale > 1.001 || pointers.size >= 2) {
+      e.preventDefault();
+      e.stopPropagation();
 
-reader.addEventListener("touchmove", e => {
-  if (e.touches.length > 1 || zoom > 1) {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  }
-}, { capture: true, passive: false });
+      try {
+        area.setPointerCapture(e.pointerId);
+      } catch (_) {}
 
-document.querySelector("#zoomIn").onclick =
-  () => setZoom(zoom + 0.25);
+      const pts = [...pointers.values()];
 
-document.querySelector("#zoomOut").onclick =
-  () => setZoom(zoom - 0.25);
+      if (pts.length >= 2) {
+        const a = pts[0];
+        const b = pts[1];
 
-document.querySelector("#prev").onclick = () => {
-  if (book && zoom === 1) book.flipPrev();
-};
-
-document.querySelector("#next").onclick = () => {
-  if (book && zoom === 1) book.flipNext();
-};
-
-document.querySelector("#hide").onclick = () => {
-  app.classList.toggle("clean");
-};
-
-document.querySelector("#full").onclick = async () => {
-  try {
-    if (!document.fullscreenElement) {
-      await app.requestFullscreen();
+        gesture = {
+          mode: "pinch",
+          distance: distance(a, b),
+          scale,
+          mid: midpoint(a, b),
+          panX,
+          panY
+        };
+      } else {
+        gesture = {
+          mode: "pan",
+          x: e.clientX,
+          y: e.clientY,
+          panX,
+          panY
+        };
+      }
     } else {
-      await document.exitFullscreen();
+      gesture = {
+        mode: "page"
+      };
     }
-  } catch {
-    alert("Fullscreen tidak didukung browser ini.");
+  }, true);
+
+  area.addEventListener("pointermove", (e) => {
+    if (!pointers.has(e.pointerId)) return;
+
+    pointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY
+    });
+
+    if (scale > 1.001 || pointers.size >= 2) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const pts = [...pointers.values()];
+
+      if (pts.length >= 2) {
+        const a = pts[0];
+        const b = pts[1];
+        const mid = midpoint(a, b);
+        const d = distance(a, b);
+
+        if (!gesture || gesture.mode !== "pinch") {
+          gesture = {
+            mode: "pinch",
+            distance: d,
+            scale,
+            mid,
+            panX,
+            panY
+          };
+        }
+
+        scale = Math.max(
+          MIN_ZOOM,
+          Math.min(
+            MAX_ZOOM,
+            gesture.scale * d / Math.max(1, gesture.distance)
+          )
+        );
+
+        panX = gesture.panX + mid.x - gesture.mid.x;
+        panY = gesture.panY + mid.y - gesture.mid.y;
+
+        clampPan();
+        updateTransform();
+      } else if (pts.length === 1) {
+        if (!gesture || gesture.mode !== "pan") {
+          gesture = {
+            mode: "pan",
+            x: e.clientX,
+            y: e.clientY,
+            panX,
+            panY
+          };
+        }
+
+        panX = gesture.panX + e.clientX - gesture.x;
+        panY = gesture.panY + e.clientY - gesture.y;
+
+        clampPan();
+        updateTransform();
+      }
+    }
+  }, true);
+
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+
+    if (scale > 1.001 && pointers.size === 1) {
+      const p = [...pointers.values()][0];
+      gesture = {
+        mode: "pan",
+        x: p.x,
+        y: p.y,
+        panX,
+        panY
+      };
+    } else if (pointers.size === 0) {
+      gesture = null;
+    }
   }
-};
 
-function updateStatus() {
-  if (!book) return;
+  area.addEventListener("pointerup", endPointer, true);
+  area.addEventListener("pointercancel", endPointer, true);
 
-  document.querySelector("#status").textContent =
-    `Halaman ${book.getCurrentPageIndex() + 1} / ${book.getPageCount()}`;
+  // Zoom dengan Ctrl + roda mouse di komputer.
+  area.addEventListener("wheel", (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
 
-  document.querySelector("#prev").disabled =
-    book.getCurrentPageIndex() === 0 || zoom > 1;
+    e.preventDefault();
+    zoomAt(scale * (e.deltaY < 0 ? 1.15 : 0.87),
+           e.clientX, e.clientY);
+  }, { passive: false });
 
-  document.querySelector("#next").disabled =
-    book.getCurrentPageIndex() >= book.getPageCount() - 1 || zoom > 1;
-}
+  document.getElementById("zoom-in").onclick = () =>
+    zoomAt(scale * 1.25,
+      window.innerWidth / 2, window.innerHeight / 2);
 
-function init() {
-  book = new St.PageFlip(bookElement, {
-    width: 420,
-    height: 594,
-    size: "stretch",
-    minWidth: 260,
-    maxWidth: 900,
-    minHeight: 360,
-    maxHeight: 1200,
-    showCover: true,
-    usePortrait: true,
-    autoSize: true,
-    maxShadowOpacity: 0.4,
-    flippingTime: 700,
-    mobileScrollSupport: false,
-    swipeDistance: 25
+  document.getElementById("zoom-out").onclick = () =>
+    zoomAt(scale / 1.25,
+      window.innerWidth / 2, window.innerHeight / 2);
+
+  document.getElementById("reset").onclick = resetZoom;
+
+  document.getElementById("prev").onclick = () => {
+    if (flip && scale <= 1.001) flip.flipPrev("top");
+  };
+
+  document.getElementById("next").onclick = () => {
+    if (flip && scale <= 1.001) flip.flipNext("top");
+  };
+
+  document.getElementById("fullscreen").onclick = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await app.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      loading.textContent =
+        "Fullscreen tidak didukung oleh browser ini.";
+      loading.classList.remove("hidden");
+      setTimeout(() => loading.classList.add("hidden"), 2000);
+    }
+  };
+
+  document.addEventListener("fullscreenchange", () => {
+    document.getElementById("fullscreen").textContent =
+      document.fullscreenElement ? "⤢" : "⛶";
   });
 
-  book.on("flip", updateStatus);
-  book.loadFromImages(images);
-  updateStatus();
-}
+  async function startBook() {
+    try {
+      // Periksa seluruh gambar sebelum membuat buku.
+      await Promise.all(pages.map(src => new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = resolve;
+        img.onerror = () => reject(
+          new Error("Gambar tidak ditemukan: " + src)
+        );
+        img.src = src;
+      })));
 
-init();
+      if (!window.St || !window.St.PageFlip) {
+        throw new Error("Library animasi gagal dimuat. Periksa internet.");
+      }
+
+      flip = new St.PageFlip(document.getElementById("book"), {
+        width: 550,
+        height: 780,
+        size: "stretch",
+        minWidth: 280,
+        maxWidth: 550,
+        minHeight: 380,
+        maxHeight: 780,
+        showCover: true,
+        usePortrait: true,
+        startPage: 0,
+        drawShadow: true,
+        flippingTime: 800,
+        maxShadowOpacity: 0.4,
+        mobileScrollSupport: false,
+        useMouseEvents: true,
+        swipeDistance: 30
+      });
+
+      flip.on("flip", (e) => {
+        pageInfo.textContent = `${e.data + 1} / ${PAGE_COUNT}`;
+      });
+
+      flip.loadFromImages(pages);
+      pageInfo.textContent = `1 / ${PAGE_COUNT}`;
+      loading.classList.add("hidden");
+
+      window.addEventListener("resize", () => {
+        if (flip && scale === 1) flip.update();
+      });
+    } catch (err) {
+      loading.textContent =
+        "Gagal memuat buku: " + err.message +
+        ". Periksa nama gambar dan folder pages.";
+      console.error(err);
+    }
+  }
+
+  startBook();
 </script>
 </body>
 </html>
